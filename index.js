@@ -25,23 +25,31 @@ function createTextElement(text) {
   }
 }
 
-function render(element, container) {
-  const {
-    type: elementType,
-    props: elementProps,
-  } = element;
-  if (!container) { throw new Error("container not passed")}
-  const node = elementType === 'TEXT_ELEMENT' ? document.createTextNode(element.props.nodeValue) : document.createElement(element.type);
-  elementProps.children.forEach(child => render(child, node));
-  if (elementProps) {
-    debugger
-    Object.keys(elementProps).forEach(key => {
-      if (key !== 'children') {
-        node[key] = elementProps[key];
+function createDom(fiber) {
+   const {
+    type,
+    props,
+  } = fiber;
+
+  const dom = type === 'TEXT_ELEMENT' ? document.createTextNode(props.nodeValue) : document.createElement(type);
+  Object.keys(props)
+    .forEach(name => {
+      if (name !== 'children') {
+        dom[name] = props[name];
       }
     });
+  return dom;
+}
+
+function render(element, container) {
+  if (!container) { throw new Error("container not passed")}
+
+  nextUnitOfWork = {
+    dom: container,
+    props: {
+      children: [element],
+    }
   }
-  container.appendChild(node);
 }
 
 let nextUnitOfWork = null
@@ -57,8 +65,48 @@ function workLoop(deadline) {
 
 requestIdleCallback(workLoop)
 
-function performUnitOfWork(nextUnitOfWork) {
+function performUnitOfWork(fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber);
+  }
+  if (fiber.parent) {
+    fiber.parent.dom.appendChild(fiber.dom)
+  }
 
+  const elements = fiber.props.children;
+  let index = 0;
+  let prevSibling = null;
+
+  while (index < elements.length) {
+    const element = elements[index];
+
+    const newFiber = {
+      type: element.type,
+      props: element.props,
+      parent: fiber,
+      dom: null,
+    }
+
+    if (index === 0) {
+      fiber.child = newFiber;
+    } else {
+      prevSibling.sibling = newFiber;
+    }
+
+    prevSibling = newFiber;
+    index++;
+  }
+
+  if (fiber.child) {
+    return fiber.child;
+  }
+  let nextFiber = fiber;
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling
+    }
+    nextFiber = nextFiber.parent;
+  }
 }
 
 const element = Didact.createElement(
