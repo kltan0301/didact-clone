@@ -61,7 +61,12 @@ function updateDom(dom, prevProps, nextProps) {
 
 function commitWork(fiber) {
   if (!fiber) { return }
-  const domParent = fiber.parent.dom;
+
+  let domParentFiber = fiber.parent
+  while (!domParentFiber.dom) {
+    domParentFiber = domParentFiber.parent
+  }
+  const domParent = domParentFiber.dom
   debugger
   if (
     fiber.effectTag === 'PLACEMENT' &&
@@ -71,12 +76,19 @@ function commitWork(fiber) {
   } else if (fiber.effectTag === 'UPDATE' && fiber.dom !== null) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props)
   } else if (fiber.effectTag === 'DELETION') {
-    domParent.removeChild(fiber.dom)
+    commitDeletion(fiber, domParent)
   }
   commitWork(fiber.child)
   commitWork(fiber.sibling)
 }
 
+function commitDeletion(fiber, domParent) {
+  if (fiber.dom) {
+    domParent.removeChild(fiber.dom)
+  } else {
+    commitDeletion(fiber.child, domParent)
+  }
+}
 let nextUnitOfWork = null;
 let wipRoot = null;
 let currentRoot = null;
@@ -152,13 +164,28 @@ function reconcileChildren(wipFiber, elements) {
   }
 }
 
-function performUnitOfWork(fiber) {
+function updateFunctionComponent(fiber) {
+  const children = [fiber.type(fiber.props)];
+  reconcileChildren(fiber, children)
+}
+
+function updateHostComponent(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber)
   }
 
   const elements = fiber.props.children;
   reconcileChildren(fiber, elements)
+}
+
+function performUnitOfWork(fiber) {
+  debugger
+  const isFunctionComponent = fiber.type instanceof Function;
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber)
+  } else {
+    updateHostComponent(fiber)
+  }
 
   if (fiber.child) { return fiber.child }
   let nextFiber = fiber;
@@ -229,6 +256,16 @@ const updateValue = (e) => {
   rerender(e.target.value);
 };
 
+function App(props) {
+  debugger
+  return Didact.createElement(
+    "h1",
+    null,
+    "Hi ",
+    props.name
+  )
+}
+
 const rerender = value => {
   const element = Didact.createElement(
   'div',
@@ -236,7 +273,8 @@ const rerender = value => {
     Didact.createElement('input', { oninput: e => {
       rerender(e.target.value)
     }, innerText: value }, 'bar'),
-    Didact.createElement('h2', { innerText: value })
+    Didact.createElement('h2', { innerText: value }),
+    Didact.createElement(App, { name: 'foo' })
   );
   Didact.render(element, container);
 }
