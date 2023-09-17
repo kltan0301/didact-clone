@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "keywords": [],
   "main": "src/didact.js",
+  "type": "module",
   "dependencies": {
     "react": "16.8.6",
     "react-dom": "16.8.6",
