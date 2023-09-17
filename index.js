@@ -32,7 +32,6 @@ function createDom(fiber) {
 }
 
 const isEvent = (key) => key.startsWith("on");
-debugger;
 const isProperty = (key) => key !== "children" && !isEvent(key);
 const isNew = (prev, next) => (key) => prev[key] !== next[key];
 const isGone = (prev, next) => (key) => !(key in next);
